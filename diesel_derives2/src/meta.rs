@@ -12,15 +12,31 @@ pub struct MetaItem {
 }
 
 impl MetaItem {
-    pub fn with_name<'a>(attrs: &[syn::Attribute], name: &'a str) -> Option<Self> {
+    pub fn all_with_name(attrs: &[syn::Attribute], name: &str) -> Vec<Self> {
         attrs
             .iter()
             .filter_map(|attr| attr.interpret_meta().map(|m| (attr.pound_token.0[0], m)))
-            .find(|&(_, ref m)| m.name() == name)
+            .filter(|&(_, ref m)| m.name() == name)
             .map(|(pound_span, meta)| Self { pound_span, meta })
+            .collect()
     }
 
-    pub fn nested_item<'a>(&self, name: &'a str) -> Result<Self, Diagnostic> {
+    pub fn with_name(attrs: &[syn::Attribute], name: &str) -> Option<Self> {
+        Self::all_with_name(attrs, name).pop()
+    }
+
+    pub fn empty(name: &str) -> Self {
+        Self {
+            pound_span: Span::call_site(),
+            meta: syn::Meta::List(syn::MetaList {
+                ident: name.into(),
+                paren_token: Default::default(),
+                nested: Default::default(),
+            }),
+        }
+    }
+
+    pub fn nested_item(&self, name: &str) -> Result<Self, Diagnostic> {
         self.nested().and_then(|mut i| {
             i.nth(0).ok_or_else(|| {
                 self.span()
@@ -101,6 +117,23 @@ impl MetaItem {
         }
     }
 
+    pub fn has_flag(&self, flag: &str) -> bool {
+        self.nested()
+            .map(|mut n| n.any(|m| m.expect_word() == flag))
+            .unwrap_or_else(|e| {
+                e.emit();
+                false
+            })
+    }
+
+    pub fn ty_value(&self) -> Result<syn::Type, Diagnostic> {
+        let mut str = self.lit_str_value()?.clone();
+        // https://github.com/rust-lang/rust/issues/47941
+        str.span = self.span_or_pound_token(str.span);
+        str.parse()
+            .map_err(|_| str.span.error("Invalid Rust type"))
+    }
+
     fn expect_str_value(&self) -> String {
         self.str_value().unwrap_or_else(|e| {
             e.emit();
@@ -113,6 +146,10 @@ impl MetaItem {
     }
 
     fn str_value(&self) -> Result<String, Diagnostic> {
+        self.lit_str_value().map(syn::LitStr::value)
+    }
+
+    fn lit_str_value(&self) -> Result<&syn::LitStr, Diagnostic> {
         use syn::Meta::*;
         use syn::MetaNameValue;
         use syn::Lit::*;
@@ -120,7 +157,7 @@ impl MetaItem {
         match self.meta {
             NameValue(MetaNameValue {
                 lit: Str(ref s), ..
-            }) => Ok(s.value()),
+            }) => Ok(s),
             _ => Err(self.span().error(format!(
                 "`{0}` must be in the form `{0} = \"value\"`",
                 self.name()
@@ -139,7 +176,7 @@ impl MetaItem {
         self.span_or_pound_token(s)
     }
 
-    fn span(&self) -> Span {
+    pub fn span(&self) -> Span {
         self.span_or_pound_token(self.meta.span())
     }
 
