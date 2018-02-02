@@ -49,6 +49,7 @@ pub fn derive(item: syn::DeriveInput) -> Result<quote::Tokens, Diagnostic> {
     Ok(wrap_in_dummy_mod(
         model.dummy_mod_name("as_changeset"),
         quote!(
+            use self::diesel::prelude::*;
             use self::diesel::query_builder::AsChangeset;
 
             impl #impl_generics AsChangeset for &'update #struct_name #ty_generics

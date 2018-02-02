@@ -27,6 +27,7 @@ mod model;
 mod util;
 
 mod as_changeset;
+mod from_sql_row;
 
 use diagnostic_shim::*;
 
@@ -34,6 +35,11 @@ use diagnostic_shim::*;
                     attributes(table_name, primary_key, column_name, changeset_options))]
 pub fn derive_as_changeset(input: TokenStream) -> TokenStream {
     expand_derive(input, as_changeset::derive)
+}
+
+#[proc_macro_derive(FromSqlRow, attributes(diesel))]
+pub fn derive_from_sql_row(input: TokenStream) -> TokenStream {
+    expand_derive(input, from_sql_row::derive)
 }
 
 fn expand_derive(
