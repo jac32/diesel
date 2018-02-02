@@ -31,7 +31,6 @@ mod attr;
 mod from_sql_row;
 mod insertable;
 mod model;
-mod query_id;
 mod queryable;
 mod queryable_by_name;
 mod sql_type;
@@ -58,11 +57,6 @@ pub fn derive_insertable(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(Associations, attributes(table_name, belongs_to))]
 pub fn derive_associations(input: TokenStream) -> TokenStream {
     expand_derive(input, associations::derive_associations)
-}
-
-#[proc_macro_derive(QueryId)]
-pub fn derive_query_id(input: TokenStream) -> TokenStream {
-    expand_derive(input, query_id::derive)
 }
 
 #[proc_macro_derive(FromSqlRow, attributes(diesel))]

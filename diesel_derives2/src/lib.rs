@@ -28,6 +28,7 @@ mod util;
 
 mod as_changeset;
 mod identifiable;
+mod query_id;
 
 use diagnostic_shim::*;
 
@@ -40,6 +41,11 @@ pub fn derive_as_changeset(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(Identifiable, attributes(table_name, primary_key, column_name))]
 pub fn derive_identifiable(input: TokenStream) -> TokenStream {
     expand_derive(input, identifiable::derive)
+}
+
+#[proc_macro_derive(QueryId)]
+pub fn derive_query_id(input: TokenStream) -> TokenStream {
+    expand_derive(input, query_id::derive)
 }
 
 fn expand_derive(
