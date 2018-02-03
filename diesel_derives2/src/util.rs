@@ -1,5 +1,6 @@
 use syn::*;
 use quote::Tokens;
+use proc_macro2::Span;
 
 pub use diagnostic_shim::*;
 
@@ -42,5 +43,14 @@ fn option_ty_arg(ty: &Type) -> Option<&Type> {
             }
         }
         _ => None,
+    }
+}
+
+pub fn fix_span(maybe_bad_span: Span, fallback: Span) -> Span {
+    let bad_span_debug = "Span(Span { lo: BytePos(0), hi: BytePos(0), ctxt: #0 })";
+    if format!("{:?}", maybe_bad_span) == bad_span_debug {
+        fallback
+    } else {
+        maybe_bad_span
     }
 }

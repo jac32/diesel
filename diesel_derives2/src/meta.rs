@@ -2,7 +2,7 @@ use proc_macro2::Span;
 use syn;
 use syn::spanned::Spanned;
 
-use diagnostic_shim::*;
+use util::*;
 
 pub struct MetaItem {
     // Due to https://github.com/rust-lang/rust/issues/47941
@@ -18,6 +18,17 @@ impl MetaItem {
             .filter_map(|attr| attr.interpret_meta().map(|m| (attr.pound_token.0[0], m)))
             .find(|&(_, ref m)| m.name() == name)
             .map(|(pound_span, meta)| Self { pound_span, meta })
+    }
+
+    pub fn empty(name: &str) -> Self {
+        Self {
+            pound_span: Span::call_site(),
+            meta: syn::Meta::List(syn::MetaList {
+                ident: name.into(),
+                paren_token: Default::default(),
+                nested: Default::default(),
+            }),
+        }
     }
 
     pub fn nested_item<'a>(&self, name: &'a str) -> Result<Self, Diagnostic> {
@@ -101,6 +112,21 @@ impl MetaItem {
         }
     }
 
+    pub fn has_flag(&self, flag: &str) -> bool {
+        self.nested()
+            .map(|mut n| n.any(|m| m.expect_word() == flag))
+            .unwrap_or_else(|e| {
+                e.emit();
+                false
+            })
+    }
+
+    pub fn ty_value(&self) -> Result<syn::Type, Diagnostic> {
+        let mut str = self.lit_str_value()?.clone();
+        str.span = self.span_or_pound_token(str.span);
+        str.parse().map_err(|_| str.span.error("Invalid Rust type"))
+    }
+
     fn expect_str_value(&self) -> String {
         self.str_value().unwrap_or_else(|e| {
             e.emit();
@@ -113,6 +139,10 @@ impl MetaItem {
     }
 
     fn str_value(&self) -> Result<String, Diagnostic> {
+        self.lit_str_value().map(syn::LitStr::value)
+    }
+
+    fn lit_str_value(&self) -> Result<&syn::LitStr, Diagnostic> {
         use syn::Meta::*;
         use syn::MetaNameValue;
         use syn::Lit::*;
@@ -120,7 +150,7 @@ impl MetaItem {
         match self.meta {
             NameValue(MetaNameValue {
                 lit: Str(ref s), ..
-            }) => Ok(s.value()),
+            }) => Ok(s),
             _ => Err(self.span().error(format!(
                 "`{0}` must be in the form `{0} = \"value\"`",
                 self.name()
@@ -147,12 +177,7 @@ impl MetaItem {
     /// https://github.com/rust-lang/rust/issues/47941,
     /// returns the span of the pound token
     fn span_or_pound_token(&self, span: Span) -> Span {
-        let bad_span_debug = "Span(Span { lo: BytePos(0), hi: BytePos(0), ctxt: #0 })";
-        if format!("{:?}", span) == bad_span_debug {
-            self.pound_span
-        } else {
-            span
-        }
+        fix_span(span, self.pound_span)
     }
 }
 

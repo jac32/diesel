@@ -49,18 +49,6 @@ impl Attr {
             )
     }
 
-    pub fn sql_type(&self) -> Option<&syn::Ty> {
-        self.sql_type.as_ref()
-    }
-
-    pub fn has_flag<T>(&self, flag: &T) -> bool
-    where
-        T: ?Sized,
-        syn::Ident: PartialEq<T>,
-    {
-        self.flags.iter().any(|f| f == flag)
-    }
-
     fn field_kind(&self) -> &str {
         if is_option_ty(&self.ty) {
             "option"
